@@ -1,8 +1,15 @@
 # io game template
-- GameEngine: phaser
-- Langage: typescript
-- build environment:
-  - webpack(webpack-cli): bundler
-  - typescript(ts-loader): trans compiler (typescript > javascript)
-  - webpack-dev-server: development server
-  - html-webpack-plugin: html build
+- server: socket server
+
+
+## server startup
+Use port 3000 for server startup.
+```
+cd ./server
+npm install
+npm start
+```
+
+## test run the server
+Use jest for testing.
+`npm test`
