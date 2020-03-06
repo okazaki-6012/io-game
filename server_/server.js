@@ -1,23 +1,23 @@
 const net = require('net')
 
 class Server {
-  constructor(port){
+  constructor(port) {
     this.clients = []
-    this.server = net.createServer(this.connectionListener.bind(this)).listen(port)    
+    this.server = net.createServer(this.connectionListener.bind(this)).listen(port)
     console.log(`server running at port ${port}\n`)
   }
 
   /** Initializing the client when connecting */
-  connectionListener(socket){
+  connectionListener(socket) {
     // 接続があった際に掃除する
-    this.clients = this.clients.filter(c=>!c.destroyed)
-    
-    socket.name = socket.remoteAddress+":"+`${Math.random()}`.slice(2,14)
+    this.clients = this.clients.filter(c => !c.destroyed)
+
+    socket.name = socket.remoteAddress + ":" + `${Math.random()}`.slice(2, 14)
     this.clients.push(socket)
     p(`Join ${socket.name}`)
-    
+
     socket.write('welcome!!')
-    
+
     socket.on('data', data => {
       this.broadcast(data, socket)
     })
@@ -29,9 +29,9 @@ class Server {
   }
 
   /** Push to other clients */
-  broadcast(message, sender){
-    for(let c of this.clients){
-      if(c !== sender && !c.destroyed){
+  broadcast(message, sender) {
+    for (let c of this.clients) {
+      if (c !== sender && !c.destroyed) {
         c.write(message)
       }
     }
@@ -39,13 +39,13 @@ class Server {
   }
 
   /** close server */
-  close(){
+  close() {
     this.server.close()
   }
 }
 
-function p(message){
-  process.stdout.write(message+'\n')
+function p(message) {
+  process.stdout.write(message + '\n')
 }
 
 module.exports = Server
