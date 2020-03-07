@@ -1,38 +1,40 @@
-const net = require('net')
+const http = require('http');
+const WebSocket = require('ws');
 
 class Server {
   constructor(port) {
     this.clients = []
-    this.server = net.createServer(this.connectionListener.bind(this)).listen(port)
+    this.ws = new WebSocket.Server({
+      port: port
+    })
+    this.ws.on('connection',this.connectionListener.bind(this))
     console.log(`server running at port ${port}\n`)
   }
 
   /** Initializing the client when connecting */
-  connectionListener(socket) {
+  connectionListener(ws, request) {
     // 接続があった際に掃除する
     this.clients = this.clients.filter(c => !c.destroyed)
 
-    socket.name = socket.remoteAddress + ":" + `${Math.random()}`.slice(2, 14)
-    this.clients.push(socket)
-    p(`Join ${socket.name}`)
+    ws.name = ws.remoteAddress + ":" + `${Math.random()}`.slice(2, 14)
+    this.clients.push(ws)
+    p(`Join ${ws.name}`)
 
-    socket.write('welcome!!')
+    ws.send('welcome!!')
 
-    socket.on('data', data => {
-      this.broadcast(data, socket)
-    })
+    ws.on('message', data => this.broadcast(data, ws))
 
-    socket.on('end', () => {
-      this.clients.slice(this.clients.indexOf(socket), 1)
-      p(`Exit ${socket.name}`)
+    ws.on('close', () => {
+      this.clients.slice(this.clients.indexOf(ws), 1)
+      p(`Exit ${ws.name}`)
     })
   }
 
   /** Push to other clients */
   broadcast(message, sender) {
     for (let c of this.clients) {
-      if (c !== sender && !c.destroyed) {
-        c.write(message)
+      if (c !== sender && c.readyState === 1) {
+        c.send(message)
       }
     }
     p(message)
