@@ -16,7 +16,8 @@ describe('server', () => {
 
   it('connection', done=>{
     client.on('message', data=>{
-      expect(data).toBe('welcome!!')
+      let d = JSON.parse(data)
+      expect(d.Type).toBe('join')
       done()
     })
   })
@@ -25,12 +26,13 @@ describe('server', () => {
     client2 = new WebSocket("ws://localhost:3000")
     client2.on('open', ()=>{
       // client2が接続完了後にclientでメッセージを送る
-      client.send('hello!!')
+      client.send(JSON.stringify({ Type: 'broadcast', Data: 'hello' }))
     })
     client2.on('message', data=>{
-      if(data !== 'welcome!!'){
+      let d = JSON.parse(data)
+      if(d.Type === 'broadcast'){
         client2.close()
-        expect(data).toBe('hello!!')
+        expect(d.Data).toBe('hello')
         done()
       }
     })
