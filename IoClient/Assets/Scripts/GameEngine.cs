@@ -7,7 +7,7 @@ using UnityEngine;
 public class GameEngine : MonoBehaviour
 {
     public Camera TrackingCamera;
-    public PlayerController PlayerController;
+    public PlayerController Player;
 
     public GameObject Niwatori;
     public GameObject Hiyoko;
@@ -18,7 +18,7 @@ public class GameEngine : MonoBehaviour
     List<Niwatori> niwatoriList_ = new List<Niwatori>();
     List<UserData> users_ = new List<UserData>();
     int frameCount_;
-    bool gameStarted_ = false;
+    public bool GameStarted { get; private set; } = false;
 
     Stack<Message> messages_ = new Stack<Message>();
 
@@ -46,64 +46,97 @@ public class GameEngine : MonoBehaviour
         if (messages_.Count > 0)
         {
             var msg = messages_.Pop();
-            switch (msg.Type)
+            if (GameStarted)
             {
-                case "join":
-                    client_.SendMessage("gameStart", "Niwako");
-                    break;
-                case "gameStart":
-                    {
-                        var data = JsonUtility.FromJson<GameStartMessage>(msg.Data);
-                        users_ = data.Users;
-                        foreach (var user in users_)
-                        {
-                            var obj = createNiwatori(user);
-                            niwatoriList_.Add(obj);
-
-                            // プレイヤーの操作するオブジェクトの初期化
-                            if (user.Id == data.Player.Id)
-                            {
-                                TrackingCamera.transform.SetParent(obj.transform, false);
-                                PlayerController.Niwatori = obj;
-                            }
-                        }
-                        gameStarted_ = true;
-                    }
-                    break;
-                case "updateUser":
-                    {
-                        if (gameStarted_)
-                        {
-                            var data = JsonUtility.FromJson<UpdateUserMessage>(msg.Data);
-                            var niwatori = FindNiwatori(data.User.Id);
-                            if (niwatori != null)
-                            {
-                                niwatori.SetMovePosition(new Vector3(data.User.X, 0, data.User.Y), data.User.IsDash);
-                                niwatori.SetQuaternion(data.User.Angle);
-                            }
-                            else
-                            {
-                                users_.Add(data.User);
-                                niwatoriList_.Add(createNiwatori(data.User));
-                            }
-                        }
-                    }
-                    break;
-                case "exitUser":
-                    {
-                        var data = JsonUtility.FromJson<exitUserMessage>(msg.Data);
-                        var user = users_.First(u => u.WsName == data.WsName);
-                        var niwatori = niwatoriList_.First(v => v.UId == user.Id);
-                        niwatoriList_.Remove(niwatori);
-                        Destroy(niwatori.gameObject);
-                    }
-                    break;
+                updateMessageForGameStarted(msg);
+            }
+            else
+            {
+                updateMessage(msg);
             }
         }
 
-        if (gameStarted_)
+        if (GameStarted)
         {
             updateServerUser();
+        }
+    }
+
+    /// <summary>
+    /// ゲーム開始後のMessage処理
+    /// </summary>
+    /// <param name="msg"></param>
+    void updateMessageForGameStarted(Message msg)
+    {
+        switch (msg.Type)
+        {
+            case "actionShot":
+                {
+                    var data = JsonUtility.FromJson<ActionShotMessage>(msg.Data);
+                    var niwatori = FindNiwatori(data.UserId);
+                    niwatori.Shot();
+                }
+                break;
+            case "updateUser":
+                {
+                    var data = JsonUtility.FromJson<UpdateUserMessage>(msg.Data);
+                    var niwatori = FindNiwatori(data.User.Id);
+                    if (niwatori != null)
+                    {
+                        niwatori.Hp = data.User.Hp;
+                        //niwatori.Power = data.User.Power;
+                        niwatori.SetMovePosition(new Vector3(data.User.X, 0, data.User.Y), data.User.IsDash);
+                        niwatori.SetQuaternion(data.User.Angle);
+                    }
+                    else
+                    {
+                        users_.Add(data.User);
+                        niwatoriList_.Add(createNiwatori(data.User));
+                    }
+                }
+                break;
+            case "exitUser":
+                {
+                    var data = JsonUtility.FromJson<exitUserMessage>(msg.Data);
+                    var user = users_.First(u => u.WsName == data.WsName);
+                    var niwatori = niwatoriList_.First(v => v.UserId == user.Id);
+                    niwatoriList_.Remove(niwatori);
+                    Destroy(niwatori.gameObject);
+                }
+                break;
+        }
+    }
+
+    /// <summary>
+    /// ゲーム開始前のMessage処理
+    /// </summary>
+    /// <param name="msg"></param>
+    void updateMessage(Message msg)
+    {
+        switch (msg.Type)
+        {
+            case "join":
+                client_.SendMessage("gameStart", "Niwako");
+                break;
+            case "gameStart":
+                {
+                    var data = JsonUtility.FromJson<GameStartMessage>(msg.Data);
+                    users_ = data.Users;
+                    foreach (var user in users_)
+                    {
+                        var obj = createNiwatori(user);
+                        niwatoriList_.Add(obj);
+
+                        // プレイヤーの操作するオブジェクトの初期化
+                        if (user.Id == data.Player.Id)
+                        {
+                            TrackingCamera.transform.SetParent(obj.transform, false);
+                            Player.Niwatori = obj;
+                        }
+                    }
+                    GameStarted = true;
+                }
+                break;
         }
     }
 
@@ -125,16 +158,21 @@ public class GameEngine : MonoBehaviour
         if (frameCount_ % 3 == 0)
         {
             var msg = new UpdateUserMessage();
-            var c = FindUser(PlayerController.Niwatori.UId);
-            c.X = PlayerController.Niwatori.transform.position.x;
-            c.Y = PlayerController.Niwatori.transform.position.z;
-            c.Angle = PlayerController.Niwatori.transform.eulerAngles.y;
-            c.Hp = PlayerController.Niwatori.Hp;
-            c.Power = PlayerController.Niwatori.Power;
-            c.IsDash = PlayerController.Niwatori.IsDash;
+            var c = FindUser(Player.Niwatori.UserId);
+            c.X = Player.Niwatori.transform.position.x;
+            c.Y = Player.Niwatori.transform.position.z;
+            c.Angle = Player.Niwatori.transform.eulerAngles.y;
+            c.Hp = Player.Niwatori.Hp;
+            c.Power = Player.Niwatori.Power;
+            c.IsDash = Player.Niwatori.IsDash;
             msg.User = c;
-            client_.SendMessage("updateUser", msg);
+            Send("updateUser", msg);
         }
+    }
+
+    public void Send(string type, object data)
+    {
+        client_.SendMessage(type, data);
     }
 
     public UserData FindUser(int id)
@@ -144,7 +182,7 @@ public class GameEngine : MonoBehaviour
 
     public Niwatori FindNiwatori(int id)
     {
-        return niwatoriList_.FirstOrDefault(v => v.UId == id);
+        return niwatoriList_.FirstOrDefault(v => v.UserId == id);
     }
 
     Niwatori createNiwatori(UserData u)
@@ -154,7 +192,7 @@ public class GameEngine : MonoBehaviour
         obj.transform.position = pos;
         obj.SetActive(true);
         var niwatori = obj.GetComponent<Niwatori>();
-        niwatori.UId = u.Id;
+        niwatori.UserId = u.Id;
         niwatori.Hp = u.Hp;
         niwatori.Power = u.Power;
         niwatori.SetMovePosition(pos, u.IsDash);
@@ -180,6 +218,12 @@ class exitUserMessage
 struct UpdateUserMessage
 {
     public UserData User;
+}
+
+[Serializable]
+public struct ActionShotMessage
+{
+    public int UserId;
 }
 
 /// <summary>

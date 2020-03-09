@@ -45,8 +45,8 @@ class Server {
           }),
         })
         break
-      case 'exitUser':
-        this.broadcast(ws, data)        
+      default:
+        this.broadcast(ws, data)
       }
     })
 

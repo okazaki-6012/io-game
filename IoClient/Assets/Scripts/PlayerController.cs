@@ -4,6 +4,9 @@ using UnityEngine;
 
 public class PlayerController : MonoBehaviour
 {
+    public float ShotCoolTime = 5;
+    float lastShotTime_;
+
     /// <summary>
     /// 移動可能な制限距離
     /// </summary>
@@ -31,11 +34,17 @@ public class PlayerController : MonoBehaviour
         {
             Niwatori.SetQuaternion(Niwatori.transform.eulerAngles.y + angle);
         }
+        if (Input.GetKeyDown(KeyCode.Space) && lastShotTime_ + ShotCoolTime < Time.time)
+        {
+            lastShotTime_ = Time.time;
+            GameEngine.Instance.Send("actionShot", new ActionShotMessage { UserId = Niwatori.UserId });
+            Niwatori.Shot();
+        }
 
         var move = Niwatori.transform.TransformDirection(Vector3.forward);
         if (Vector3.Distance(Vector3.zero, Niwatori.transform.position + move) < MoveDistance)
         {
-            Niwatori.SetMovePosition(Niwatori.transform.position + move, Input.GetKey(KeyCode.Space));
+            Niwatori.SetMovePosition(Niwatori.transform.position + move, Input.GetKey(KeyCode.W));
         }
     }
 }

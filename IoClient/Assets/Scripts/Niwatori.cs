@@ -10,13 +10,20 @@ public class Niwatori : MonoBehaviour
 
     public Animator Anima;
 
-    public int UId;
+    public int UserId;
     public int Hp;
     public int Power;
     public bool IsDash;
 
+    public GameObject Bullet;
+
     Quaternion targetQuaternion_;
     Vector3 movePosition_;
+
+    void Awake()
+    {
+        Bullet.SetActive(false);
+    }
 
     void OnEnable()
     {
@@ -49,6 +56,15 @@ public class Niwatori : MonoBehaviour
         }
     }
 
+    void OnCollisionEnter(Collision collision)
+    {
+        if (collision.gameObject.name.Contains("Bullet"))
+        {
+            Hp--;
+            Destroy(collision.gameObject);
+        }
+    }
+
     /// <summary>
     /// 行く先の座標を設定する
     /// </summary>
@@ -66,5 +82,13 @@ public class Niwatori : MonoBehaviour
     public void SetQuaternion(float angle)
     {
         targetQuaternion_ = Quaternion.Euler(0, angle, 0);
+    }
+
+    public void Shot()
+    {
+        var bullet = Instantiate(Bullet);
+        bullet.SetActive(true);
+        bullet.transform.position = transform.position + transform.TransformDirection(Vector3.forward) + new Vector3(0, 0.25f, 0);
+        bullet.transform.rotation = transform.rotation;
     }
 }
