@@ -11,7 +11,7 @@ public class Niwatori : MonoBehaviour
     public Animator Anima;
 
     public int UserId;
-    public int Hp;
+    public int Hp = 0;
     public int Power;
     public bool IsDash;
 
@@ -19,6 +19,11 @@ public class Niwatori : MonoBehaviour
 
     Quaternion targetQuaternion_;
     Vector3 movePosition_;
+
+    /// <summary>
+    /// 死亡したか？
+    /// </summary>
+    public bool IsDead => Hp <= 0;
 
     void Awake()
     {
@@ -33,6 +38,11 @@ public class Niwatori : MonoBehaviour
 
     void Update()
     {
+        if (IsDead)
+        {
+            return;
+        }
+
         // 向き変更
         if (transform.rotation.y != targetQuaternion_.y)
         {
@@ -60,7 +70,7 @@ public class Niwatori : MonoBehaviour
     {
         if (collision.gameObject.name.Contains("Bullet"))
         {
-            Hp--;
+            GameEngine.Instance.Send(Message.ActionDamge, new ActionDamageMessage { UserId = UserId, Damage = 1 });
             Destroy(collision.gameObject);
         }
     }
@@ -84,11 +94,36 @@ public class Niwatori : MonoBehaviour
         targetQuaternion_ = Quaternion.Euler(0, angle, 0);
     }
 
+    /// <summary>
+    /// 弾を撃つ
+    /// </summary>
     public void Shot()
     {
         var bullet = Instantiate(Bullet);
         bullet.SetActive(true);
         bullet.transform.position = transform.position + transform.TransformDirection(Vector3.forward) + new Vector3(0, 0.25f, 0);
         bullet.transform.rotation = transform.rotation;
+    }
+
+    /// <summary>
+    /// ダメージを受ける
+    /// </summary>
+    /// <param name="damage"></param>
+    public void Damage(int damage)
+    {
+        Hp -= damage;
+    }
+
+    /// <summary>
+    /// 死亡
+    /// </summary>
+    public IEnumerator Dead()
+    {
+        while (transform.eulerAngles.z < 80)
+        {
+            transform.Rotate(Vector3.forward*1.5f);
+            yield return null;
+        }
+        Destroy(gameObject);
     }
 }

@@ -1,4 +1,3 @@
-const http = require('http');
 const WebSocket = require('ws');
 
 class Server {
@@ -6,9 +5,7 @@ class Server {
     this.clients = []
     this.users = []
     this.userUniqueId = 1
-    this.ws = new WebSocket.Server({
-      port: port
-    })
+    this.ws = new WebSocket.Server({ port: port })
     this.ws.on('connection',this.connectionListener.bind(this))
     p(`server running at port ${port}\n`)
   }
@@ -84,7 +81,7 @@ class Server {
   /** Push to other clients */
   broadcast(sender, message) {
     for (let c of this.clients) {
-      if (c !== sender && c.readyState === 1) {
+      if (c.readyState === 1) {
         c.send(message)
       }
     }

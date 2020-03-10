@@ -18,6 +18,10 @@ public class GameEngine : MonoBehaviour
     List<Niwatori> niwatoriList_ = new List<Niwatori>();
     List<UserData> users_ = new List<UserData>();
     int frameCount_;
+
+    /// <summary>
+    /// ゲームを開始しているか？
+    /// </summary>
     public bool GameStarted { get; private set; } = false;
 
     Stack<Message> messages_ = new Stack<Message>();
@@ -31,6 +35,11 @@ public class GameEngine : MonoBehaviour
     }
 
     void Start()
+    {
+        Init();
+    }
+
+    public void Init()
     {
         client_ = new WsClient("ws://localhost:3000");
         client_.OnMessage = onMessage;
@@ -70,21 +79,47 @@ public class GameEngine : MonoBehaviour
     {
         switch (msg.Type)
         {
-            case "actionShot":
+            case Message.ActionShot: // 弾を撃つ
                 {
                     var data = JsonUtility.FromJson<ActionShotMessage>(msg.Data);
                     var niwatori = FindNiwatori(data.UserId);
                     niwatori.Shot();
                 }
                 break;
-            case "updateUser":
+            case Message.ActionDamge: // ダメージを受ける
+                {
+                    var data = JsonUtility.FromJson<ActionDamageMessage>(msg.Data);
+                    var niwatori = FindNiwatori(data.UserId);
+                    niwatori.Damage(data.Damage);
+
+                    // HPが0以下になったら、死ぬ
+                    if (niwatori.IsDead)
+                    {
+                        niwatoriList_.Remove(niwatori);
+
+                        // プレイヤーが死んだときの処理
+                        if (niwatori.UserId == Player.Niwatori.UserId) {
+                            client_.Dispose();
+                            GameStarted = false;
+                            TrackingCamera.transform.SetParent(null, false);
+                            foreach (var n in niwatoriList_)
+                            {
+                                Destroy(n.gameObject);
+                            }
+                            niwatoriList_.Clear();
+
+                            // プレイヤーのニワトリを破棄
+                            StartCoroutine(niwatori.Dead());
+                        }
+                    }
+                }
+                break;
+            case Message.UpdateUser: // 座標を更新する
                 {
                     var data = JsonUtility.FromJson<UpdateUserMessage>(msg.Data);
                     var niwatori = FindNiwatori(data.User.Id);
                     if (niwatori != null)
                     {
-                        niwatori.Hp = data.User.Hp;
-                        //niwatori.Power = data.User.Power;
                         niwatori.SetMovePosition(new Vector3(data.User.X, 0, data.User.Y), data.User.IsDash);
                         niwatori.SetQuaternion(data.User.Angle);
                     }
@@ -95,9 +130,9 @@ public class GameEngine : MonoBehaviour
                     }
                 }
                 break;
-            case "exitUser":
+            case Message.ExitUser: // 退室したユーザの処理
                 {
-                    var data = JsonUtility.FromJson<exitUserMessage>(msg.Data);
+                    var data = JsonUtility.FromJson<ExitUserMessage>(msg.Data);
                     var user = users_.First(u => u.WsName == data.WsName);
                     var niwatori = niwatoriList_.First(v => v.UserId == user.Id);
                     niwatoriList_.Remove(niwatori);
@@ -115,10 +150,10 @@ public class GameEngine : MonoBehaviour
     {
         switch (msg.Type)
         {
-            case "join":
-                client_.SendMessage("gameStart", "Niwako");
+            case Message.Join: // 接続成功
+                client_.SendMessage(Message.GameStart, "Niwako");
                 break;
-            case "gameStart":
+            case Message.GameStart: // ゲーム開始
                 {
                     var data = JsonUtility.FromJson<GameStartMessage>(msg.Data);
                     users_ = data.Users;
@@ -131,7 +166,7 @@ public class GameEngine : MonoBehaviour
                         if (user.Id == data.Player.Id)
                         {
                             TrackingCamera.transform.SetParent(obj.transform, false);
-                            Player.Niwatori = obj;
+                            Player.Init(obj);
                         }
                     }
                     GameStarted = true;
@@ -154,7 +189,7 @@ public class GameEngine : MonoBehaviour
     /// </summary>
     void updateServerUser()
     {
-        frameCount_++;
+        // 3フレームごとに座標を同期
         if (frameCount_ % 3 == 0)
         {
             var msg = new UpdateUserMessage();
@@ -166,8 +201,9 @@ public class GameEngine : MonoBehaviour
             c.Power = Player.Niwatori.Power;
             c.IsDash = Player.Niwatori.IsDash;
             msg.User = c;
-            Send("updateUser", msg);
+            Send(Message.UpdateUser, msg);
         }
+        frameCount_++;
     }
 
     public void Send(string type, object data)
@@ -201,6 +237,16 @@ public class GameEngine : MonoBehaviour
     }
 }
 
+public partial struct Message
+{
+    public const string GameStart = "gameStart";
+    public const string ExitUser = "exitUser";
+    public const string Join = "join";
+    public const string UpdateUser = "updateUser";
+    public const string ActionShot = "actionShot";
+    public const string ActionDamge = "actionDamage";
+}
+
 [Serializable]
 class GameStartMessage
 {
@@ -209,7 +255,7 @@ class GameStartMessage
 }
 
 [Serializable]
-class exitUserMessage
+class ExitUserMessage
 {
     public string WsName;
 }
@@ -224,6 +270,13 @@ struct UpdateUserMessage
 public struct ActionShotMessage
 {
     public int UserId;
+}
+
+[Serializable]
+public struct ActionDamageMessage
+{
+    public int UserId;
+    public int Damage;
 }
 
 /// <summary>

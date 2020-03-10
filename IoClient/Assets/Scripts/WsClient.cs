@@ -2,7 +2,7 @@
 using UnityEngine;
 using WebSocketSharp;
 
-public struct Message
+public partial struct Message
 {
     public string Type;
     public string Data;
