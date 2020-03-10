@@ -98,7 +98,8 @@ public class GameEngine : MonoBehaviour
                         niwatoriList_.Remove(niwatori);
 
                         // プレイヤーが死んだときの処理
-                        if (niwatori.UserId == Player.Niwatori.UserId) {
+                        if (niwatori.UserId == Player.Niwatori.UserId)
+                        {
                             client_.Dispose();
                             GameStarted = false;
                             TrackingCamera.transform.SetParent(null, false);
@@ -107,10 +108,10 @@ public class GameEngine : MonoBehaviour
                                 Destroy(n.gameObject);
                             }
                             niwatoriList_.Clear();
-
-                            // プレイヤーのニワトリを破棄
-                            StartCoroutine(niwatori.Dead());
                         }
+
+                        // プレイヤーのニワトリを破棄
+                        StartCoroutine(niwatori.Dead());
                     }
                 }
                 break;
