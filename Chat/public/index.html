@@ -1,0 +1,56 @@
+<html>
+
+<head>
+  <title>チャット</title>
+</head>
+
+<body>
+  <ul id="msg_list"></ul>
+  <form action="" method="post" onsubmit="return false;">
+    <input type="text" class="text" id="message" />
+    <input type="submit" class="button" id="send" value="送信" />
+  </form>
+</body>
+
+<script type="text/javascript" src="jquery-1.11.3.min.js"></script>
+<!-- socket.ioのクラインアントライブラリを取得 -->
+<script src="/ws/websocket.js"></script>
+<script type="text/javascript">
+  var ws = new WebSocket("ws://" + window.location.hostname + ":4000");
+  var myName = "";
+
+  ws.onopen = () => {
+    console.log('connected');
+  };
+
+  ws.onclose = () => {
+    console.log('disconnected');
+  };
+
+  ws.onmessage = (msg) => {
+    console.log(msg);
+    var d = JSON.parse(msg.data);
+    switch (d.type) {
+      case 'join':
+        myName = d.name;
+        $("#msg_list").prepend(`<li>${d.name}さんが入室しました</li>`);
+        break;
+      case 'exit':
+        $("#msg_list").prepend(`<li>${d.name}さんが退室しました</li>`);
+        break;
+      case 'postMessage':
+        $("#msg_list").prepend(`<li>${d.name}: ${d.message}</li>`);
+        break;
+    }
+  };
+
+  // ボタンクリック時に、メッセージ送信
+  $("input#send").click(() => {
+    var msg = $("#message").val();
+    $("#message").val("");
+    // サーバへ送信
+    ws.send(JSON.stringify({ type: "postMessage", name: myName, message: msg }));
+  });
+</script>
+
+</html>
